@@ -85,7 +85,12 @@ if st.sidebar.button("🔄 최신 영상 목록 가져오기", use_container_wid
     
     with st.spinner("유튜브 채널의 최신 영상 리스트를 동기화하는 중..."):
         latest = fetch_videos_for_channels()
-        if latest:
+        
+        # 에러 객체 감지
+        if latest and isinstance(latest[0], dict) and "_error" in latest[0]:
+            error_msg = latest[0]["_error"]
+            st.sidebar.error(f"❌ API 오류 발생:\n\n`{error_msg}`\n\nGoogle Cloud Console에서 API 키 제한(IP/리퍼러)을 확인하거나 Streamlit Secrets의 키 이름을 점검해주세요.")
+        elif latest:
             st.session_state.latest_videos = latest
             save_latest_video_list(latest)
             

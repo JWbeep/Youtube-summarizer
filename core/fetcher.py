@@ -155,9 +155,10 @@ def fetch_videos_for_channels():
         
     try:
         youtube = get_youtube_client()
-    except ValueError as e:
-        print(e)
-        return []
+    except Exception as e:
+        print(f"YouTube 클라이언트 초기화 실패: {e}")
+        # 에러 내용을 상위로 전달하기 위해 특수 문자열 반환
+        return [{"_error": str(e)}]
 
     all_videos = []
     
