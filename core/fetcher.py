@@ -79,6 +79,8 @@ def get_channel_id_by_name(youtube, channel_name):
             return items[0]['id']['channelId']
     except Exception as e:
         print(f"채널 ID 자동 검색 실패 ({channel_name}): {e}")
+        # 에러 내용을 상위로 전달 (None 대신 에러 문자열 반환)
+        return f"_SEARCH_ERROR_:{e}"
     return None
 
 def get_playlist_id_by_name(youtube, channel_id, playlist_name):
@@ -181,6 +183,10 @@ def fetch_videos_for_channels():
             if not channel_id:
                 print(f"  - 채널 '{channel_name}'의 ID를 찾을 수 없어 수집을 건너뜁니다.")
                 continue
+            # 검색 에러가 있을 경우 에러 전파
+            if isinstance(channel_id, str) and channel_id.startswith("_SEARCH_ERROR_:"):
+                error_detail = channel_id.replace("_SEARCH_ERROR_:", "")
+                return [{"_error": f"채널 '{channel_name}' 검색 실패: {error_detail}"}]
             print(f"  - 채널 ID 조회 성공: '{channel_name}' -> ID: {channel_id}")
             
         if corners:
