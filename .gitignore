@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# App Specific
+.env
+data/summaries/*.json
+!data/summaries/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dynamic Caches
+data/latest_video_list.json
+temp_audio/
