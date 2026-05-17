@@ -148,7 +148,7 @@ def fetch_latest_videos(youtube, playlist_id, max_results=5):
         print(f"YouTube API 재생목록 항목 조회 오류 ({playlist_id}): {e}")
         return []
 
-def fetch_videos_for_channels():
+def fetch_videos_for_channels(progress_callback=None):
     """설정된 모든 활성 채널의 최신 영상을 수집하고 필터링하여 반환합니다. (ID 자동 검색 지원)"""
     channels = load_channels_config()
     if not channels:
@@ -163,17 +163,19 @@ def fetch_videos_for_channels():
         return [{"_error": str(e)}]
 
     all_videos = []
+    active_channels = [c for c in channels if c.get('active', True)]
+    total_channels = len(active_channels)
     
-    for channel in channels:
-        # active 속성이 false이면 건너뜀 (기본값은 true)
-        if not channel.get('active', True):
-            continue
-            
+    for idx, channel in enumerate(active_channels):
         channel_name = channel.get('name')
         channel_id = channel.get('channel_id')
         max_results = channel.get('max_results', 5)
         corners = channel.get('corners', [])
         
+        # 콜백 호출 (Streamlit UI 진행 상태바 업데이트용)
+        if progress_callback:
+            progress_callback(idx, total_channels, f"[{idx+1}/{total_channels}] {channel_name} 수집 중...")
+            
         print(f"[{channel_name}] 데이터 수집 중...")
         
         # 1. 채널 ID가 생략되어 있는 경우, 이름으로 채널 ID 자동 검색
@@ -222,6 +224,8 @@ def fetch_videos_for_channels():
             for item in latest_items:
                 item['corner_name'] = None
                 _process_and_add_video(item, channel_name, channel_id, all_videos)
+        if progress_callback:
+            progress_callback(idx + 1, total_channels, f"[{idx+1}/{total_channels}] {channel_name} 완료!")
             
     return all_videos
 

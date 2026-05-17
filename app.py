@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import json
 import glob
+import time
 from dotenv import load_dotenv
 
 # core 모듈 임포트
@@ -51,8 +52,26 @@ def save_latest_video_list(video_list):
         st.error(f"영상 목록 캐시를 저장하는데 오류가 발생했습니다: {e}")
 
 # ------------------------------------------------------------------
-# 세션 상태(Session State) 초기화
+# 세션 상태(Session State) 초기화 및 최초 진입 시 캐시 완전 삭제
 # ------------------------------------------------------------------
+if "session_initialized" not in st.session_state:
+    st.session_state.session_initialized = True
+    
+    # 1. 최신 영상 목록 파일 삭제
+    if os.path.exists(LATEST_LIST_PATH):
+        try:
+            os.remove(LATEST_LIST_PATH)
+        except Exception:
+            pass
+            
+    # 2. 기존의 모든 요약 파일(*.json) 영구 클리어
+    if os.path.exists(CACHE_DIR):
+        for file_path in glob.glob(os.path.join(CACHE_DIR, "*.json")):
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+
 if "latest_videos" not in st.session_state:
     # 앱 시작 시 항상 빈 화면으로 시작 (이전 캐시 자동 로드 금지)
     st.session_state.latest_videos = []
@@ -82,28 +101,41 @@ if st.sidebar.button("🔄 최신 영상 목록 가져오기", use_container_wid
             os.remove(LATEST_LIST_PATH)
         except Exception:
             pass
+            
+    # 요약하기 화면과 완전 일치하는 바 형식의 진행상태 창 신설
+    progress_bar = st.sidebar.progress(0.0)
+    status_text = st.sidebar.empty()
     
-    with st.spinner("유튜브 채널의 최신 영상 리스트를 동기화하는 중..."):
-        latest = fetch_videos_for_channels()
+    # fetcher의 진행 콜백 함수 정의
+    def update_fetch_progress(current, total, msg):
+        status_text.text(msg)
+        progress_bar.progress(float(current / total))
         
-        # 에러 객체 감지
-        if latest and isinstance(latest[0], dict) and "_error" in latest[0]:
-            error_msg = latest[0]["_error"]
-            st.sidebar.error(f"❌ API 오류 발생:\n\n`{error_msg}`\n\nGoogle Cloud Console에서 API 키 제한(IP/리퍼러)을 확인하거나 Streamlit Secrets의 키 이름을 점검해주세요.")
-        elif latest:
-            st.session_state.latest_videos = latest
-            save_latest_video_list(latest)
-            
-            # 신규 업데이트 비디오 개수 계산 (로컬 캐시 summaries 폴더에 요약이 없는 영상들)
-            new_videos = [v for v in latest if not has_summary(v['video_id'])]
-            
-            if len(new_videos) > 0:
-                st.sidebar.success(f"새로 요약 가능한 최신 동영상 {len(new_videos)}개를 발견했습니다!")
-            else:
-                # 이미 모든 동영상이 요약 완료된 상태이거나 새로운 영상이 업로드되지 않은 경우
-                st.sidebar.info("최신 업데이트 된 영상이 없습니다.")
+    latest = fetch_videos_for_channels(progress_callback=update_fetch_progress)
+    
+    # 로딩 완료 후 프로그레스 바 영역 깔끔하게 닫기
+    time.sleep(0.5)
+    progress_bar.empty()
+    status_text.empty()
+    
+    # 에러 객체 감지
+    if latest and isinstance(latest[0], dict) and "_error" in latest[0]:
+        error_msg = latest[0]["_error"]
+        st.sidebar.error(f"❌ API 오류 발생:\n\n`{error_msg}`\n\nGoogle Cloud Console에서 API 키 제한(IP/리퍼러)을 확인하거나 Streamlit Secrets의 키 이름을 점검해주세요.")
+    elif latest:
+        st.session_state.latest_videos = latest
+        save_latest_video_list(latest)
+        
+        # 신규 업데이트 비디오 개수 계산 (로컬 캐시 summaries 폴더에 요약이 없는 영상들)
+        new_videos = [v for v in latest if not has_summary(v['video_id'])]
+        
+        if len(new_videos) > 0:
+            st.sidebar.success(f"새로 요약 가능한 최신 동영상 {len(new_videos)}개를 발견했습니다!")
         else:
-            st.sidebar.warning("설정된 채널의 최신 동영상을 찾지 못했습니다. API 키와 설정을 확인해주세요.")
+            # 이미 모든 동영상이 요약 완료된 상태이거나 새로운 영상이 업로드되지 않은 경우
+            st.sidebar.info("최신 업데이트 된 영상이 없습니다.")
+    else:
+        st.sidebar.warning("설정된 채널의 최신 동영상을 찾지 못했습니다. API 키와 설정을 확인해주세요.")
 
 st.sidebar.divider()
 
@@ -258,6 +290,90 @@ else:
         channels = list(set([s['video']['channel_name'] for s in displayed_summaries]))
         selected_channel = st.selectbox("채널 필터", ["전체 보기"] + channels)
         
+        # 📋 복사용 텍스트 빌드 (필터링된 요약들 기준)
+        copy_text_parts = []
+        for idx, item in enumerate(displayed_summaries):
+            video = item['video']
+            summary = item['summary']
+            if selected_channel != "전체 보기" and video['channel_name'] != selected_channel:
+                continue
+                
+            corner_str = f" | {video['corner_name']}" if video.get('corner_name') else ""
+            part = f"=== [{video['published_at'][:10]}] {video['channel_name']}{corner_str} ===\n"
+            part += f"- 제목: {video['title']}\n"
+            part += f"- 원본 링크: {video['video_url']}\n"
+            part += f"- 요약 분석:\n{summary}\n"
+            part += "\n" + "="*50 + "\n\n"
+            copy_text_parts.append(part)
+            
+        full_copy_text = "".join(copy_text_parts).strip()
+        
+        # 샌드박스 안전 전체 복사 버튼 컴포넌트 렌더링
+        if full_copy_text:
+            # HTML 특수문자 이스케이프 방지 및 안전 전달을 위해 JS 템플릿 리터럴용 문자열 처리
+            escaped_copy_text = full_copy_text.replace('\\', '\\\\').replace('`', '\\`').replace('$', '\\$')
+            
+            # 수려한 스타일의 전체 복사 컴포넌트 HTML 생성
+            copy_button_html = f"""
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+                <button id="copy-btn" style="
+                    background-color: #2e7d32;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    transition: background-color 0.3s ease;
+                ">
+                    📋 전체 내용 복사하기
+                </button>
+            </div>
+            <script>
+                document.getElementById('copy-btn').addEventListener('click', function() {{
+                    const textToCopy = `{escaped_copy_text}`;
+                    
+                    // 모바일 및 HTTPS 환경 모두 대응 가능한 최신 클립보드 API 시도
+                    if (navigator.clipboard && window.isSecureContext) {{
+                        navigator.clipboard.writeText(textToCopy).then(showSuccess).catch(fallbackCopy);
+                    }} else {{
+                        fallbackCopy(textToCopy);
+                    }}
+                    
+                    function fallbackCopy(text) {{
+                        const textArea = document.createElement('textarea');
+                        textArea.value = text;
+                        textArea.style.position = 'fixed'; // 화면 밖으로 배치
+                        textArea.style.left = '-999999px';
+                        document.body.appendChild(textArea);
+                        textArea.focus();
+                        textArea.select();
+                        try {{
+                            document.execCommand('copy');
+                            showSuccess();
+                        }} catch (err) {{
+                            console.error('클립보드 복사 실패:', err);
+                            alert('복사에 실패했습니다. 수동으로 복사해주세요.');
+                        }}
+                        document.body.removeChild(textArea);
+                    }}
+                    
+                    function showSuccess() {{
+                        const btn = document.getElementById('copy-btn');
+                        btn.style.backgroundColor = '#1b5e20';
+                        btn.innerHTML = '✅ 전체 복사 완료!';
+                    }}
+                }});
+            </script>
+            """
+            import streamlit.components.v1 as components
+            # iframe 높이 45px로 지정하여 세련되게 렌더링
+            components.html(copy_button_html, height=45)
+            
         # 카드 형태로 리스트 출력
         for item in displayed_summaries:
             video = item['video']

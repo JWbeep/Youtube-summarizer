@@ -1,38 +1,29 @@
-# ============================================================
-# 유튜브 요약 생성기 - 채널 설정 파일
-# ============================================================
-#
-# [필드 설명]
-# name        : (필수) 화면에 표시될 채널 이름
-# corners     : (선택) 채널 내 감시할 특정 재생목록(코너) 목록.
-#   - name        : 재생목록의 정확한 이름 (100% 완전 일치 검색)
-# max_results : (선택) 가져올 최신 영상 수. 기본값 5
-# active      : (선택) false 로 설정하면 이 채널은 수집하지 않음. 기본값 true
-#
-# ============================================================
-
 channels:
-
-  - name: "한경 글로벌마켓"
-    corners:
-      - name: "빈난새의 빈틈없이월가"
-    max_results: 3
-    active: true
-
-  - name: "매경 월가월부"
-    corners:
-      - name: "홍장원의 불앤베어"
-    max_results: 3
-    active: true
-
-  - name: "교양이를 부탁해"
-    corners:
-      - name: "교양이 HOT"
-    max_results: 2
-    active: true
-
-  - name: "전인구경제연구소"
-    corners:
-      - name: "주식"
-    max_results: 3
-    active: true
+- name: 한경 글로벌마켓
+  corners:
+  - name: 빈난새의 빈틈없이월가
+    playlist_id: PLAddSCfY5PwNZXKsCxHCuIleQacL4VAB9
+  max_results: 3
+  active: true
+  channel_id: UCWskYkV4c4S9D__rsfOl2JA
+- name: 매경 월가월부
+  corners:
+  - name: 홍장원의 불앤베어
+    playlist_id: PLF5Fz9qlNg7DPSdYkUSDWc8dLR9oiSab_
+  max_results: 3
+  active: true
+  channel_id: UCIipmgxpUxDmPP-ma3Ahvbw
+- name: 교양이를 부탁해
+  corners:
+  - name: 교양이 HOT
+    playlist_id: PLPtP6TAuOHakSa8g_3bIbUy70HDLEoPbK
+  max_results: 3
+  active: true
+  channel_id: UChY8VUjXv0aA7RF9hDQ0ISg
+- name: 전인구경제연구소
+  corners:
+  - name: 주식
+    playlist_id: PLpezlh5x80cu8KTXJQ7CSqr8HwLs6cL9x
+  max_results: 3
+  active: true
+  channel_id: UCznImSIaxZR7fdLCICLdgaQ
