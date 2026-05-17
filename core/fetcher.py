@@ -13,17 +13,6 @@ if sys.platform == "win32":
 # 환경 변수 로드
 load_dotenv()
 
-YOUTUBE_API_KEY = None
-try:
-    import streamlit as st
-    # Streamlit 환경에서 secrets 먼저 조회
-    YOUTUBE_API_KEY = st.secrets.get("YOUTUBE_DATA_API_KEY", st.secrets.get("YOUTUBE_API_KEY"))
-except Exception:
-    pass
-
-if not YOUTUBE_API_KEY:
-    YOUTUBE_API_KEY = os.getenv("YOUTUBE_DATA_API_KEY", os.getenv("YOUTUBE_API_KEY"))
-
 def extract_playlist_id(url_or_id):
     """URL에서 재생목록 ID를 추출하거나, 이미 ID인 경우 그대로 반환합니다."""
     if not url_or_id:
@@ -56,9 +45,21 @@ def load_channels_config(config_path="config/channels.yaml"):
 
 def get_youtube_client():
     """YouTube Data API 클라이언트를 반환합니다."""
-    if not YOUTUBE_API_KEY:
-        raise ValueError("YOUTUBE_API_KEY가 설정되지 않았습니다. .env 파일을 확인하세요.")
-    return build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
+    # 함수 호출 시점에 API 키를 읽어야 st.secrets가 완전히 초기화된 상태임을 보장
+    api_key = None
+    try:
+        import streamlit as st
+        api_key = st.secrets.get("YOUTUBE_DATA_API_KEY", st.secrets.get("YOUTUBE_API_KEY"))
+    except Exception:
+        pass
+    
+    if not api_key:
+        api_key = os.getenv("YOUTUBE_DATA_API_KEY", os.getenv("YOUTUBE_API_KEY"))
+    
+    if not api_key:
+        raise ValueError("YOUTUBE_API_KEY가 설정되지 않았습니다. Streamlit Secrets 또는 .env 파일을 확인하세요.")
+    
+    return build('youtube', 'v3', developerKey=api_key)
 
 # ------------------------------------------------------------------
 # 🔍 유튜브 자동 검색 도우미 함수 (신규 추가)

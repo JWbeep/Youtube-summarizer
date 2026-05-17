@@ -54,7 +54,8 @@ def save_latest_video_list(video_list):
 # 세션 상태(Session State) 초기화
 # ------------------------------------------------------------------
 if "latest_videos" not in st.session_state:
-    st.session_state.latest_videos = load_latest_video_list()
+    # 앱 시작 시 항상 빈 화면으로 시작 (이전 캐시 자동 로드 금지)
+    st.session_state.latest_videos = []
 
 if "displayed_video_ids" not in st.session_state:
     # 우측 메인 화면에 띄울 비디오 ID들의 목록 (처음엔 빈 화면)
@@ -71,8 +72,16 @@ AI가 스마트하게 요약해 드립니다.
 
 # ① [유튜브 최신 영상 목록 조회] 버튼
 if st.sidebar.button("🔄 최신 영상 목록 가져오기", use_container_width=True):
-    # 최신 목록 가져오기 버튼을 누르면 우측 화면을 빈 도화지 상태로 초기화
+    # 버튼 클릭 시 기존 캐시 파일 및 세션 상태 완전 초기화
     st.session_state.displayed_video_ids = []
+    st.session_state.latest_videos = []
+    
+    # 기존 영상 목록 캐시 파일 삭제
+    if os.path.exists(LATEST_LIST_PATH):
+        try:
+            os.remove(LATEST_LIST_PATH)
+        except Exception:
+            pass
     
     with st.spinner("유튜브 채널의 최신 영상 리스트를 동기화하는 중..."):
         latest = fetch_videos_for_channels()
